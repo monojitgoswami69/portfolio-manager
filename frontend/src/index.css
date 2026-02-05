@@ -422,3 +422,80 @@ input[type="checkbox"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Login Page Styles */
+.login-page {
+  position: relative;
+  background: linear-gradient(to bottom, #dbeafe, #93c5fd);
+  overflow: hidden;
+}
+
+.mountain-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.scenic-image {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.9;
+  transition: opacity 0.5s ease;
+  filter: blur(20px);
+}
+
+/* Glass Card Style */
+.glass-card {
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: none;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.2);
+}
+
+/* Highly Transparent Input Fields */
+.input-glass {
+  /* !important added to override Tailwind forms default white background */
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #1e293b;
+  transition: all 0.2s ease;
+  /* Reset any shadows */
+  box-shadow: none !important;
+}
+
+.input-glass:focus {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  /* ONLY change border color, NO thick rings */
+  border-color: #4F46E5 !important;
+  box-shadow: 0 0 0 1px #4F46E5 !important;
+  /* Very thin 1px outline of same color */
+  outline: none !important;
+}
+
+/* Placeholder color adjustment */
+.input-glass::placeholder {
+  color: rgba(30, 41, 59, 0.6);
+}
+
+/* Fix for Chrome/Safari Autofill background ruining glass effect */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px rgba(255, 255, 255, 0.1) inset !important;
+  -webkit-text-fill-color: #1e293b !important;
+  transition: background-color 5000s ease-in-out 0s;
+}

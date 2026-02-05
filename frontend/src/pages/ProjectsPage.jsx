@@ -183,14 +183,71 @@ const ProjectForm = ({ formData, setFormData }) => {
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Image URL</label>
-                <input
-                    type="url"
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                    placeholder="https://example.com/image.jpg"
-                />
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Project Image</label>
+                <div className="space-y-2">
+                    <div className="flex gap-2">
+                        <label className="flex-1">
+                            <div className="px-3 py-2 border-2 border-dashed border-neutral-300 rounded-lg hover:border-primary-500 cursor-pointer text-center text-sm text-neutral-600 hover:text-primary-600 transition-colors">
+                                {formData.imageFile ? formData.imageFile.name : 'Choose image file'}
+                            </div>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        if (file.size > 2 * 1024 * 1024) {
+                                            alert('File size exceeds 2MB limit');
+                                            e.target.value = '';
+                                            return;
+                                        }
+                                        const reader = new FileReader();
+                                        reader.onload = (e) => {
+                                            setFormData({
+                                                ...formData,
+                                                imageFile: file,
+                                                imagePreview: e.target.result
+                                            });
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                                className="hidden"
+                            />
+                        </label>
+                    </div>
+
+                    {/* Preview */}
+                    {(formData.imagePreview || (formData.imageUrl && !formData.imageUrl.startsWith('public/projects/'))) && (
+                        <div className="relative w-full h-32 rounded-lg overflow-hidden border border-neutral-200">
+                            <img
+                                src={formData.imagePreview || formData.imageUrl}
+                                alt="Preview"
+                                className="w-full h-full object-cover"
+                            />
+                            {formData.imageFile && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, imageFile: null, imagePreview: null })}
+                                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded hover:bg-red-600"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* URL fallback */}
+                    <div className="text-xs text-neutral-500 mt-2">Or paste image URL as fallback:</div>
+                    <input
+                        type="url"
+                        value={formData.imageUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                        disabled={!!formData.imageFile}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        placeholder="https://example.com/image.jpg"
+                    />
+                </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -421,7 +478,10 @@ const projectToFormData = (project) => ({
     description: project.description || '',
     longDescription: project.longDescription || '',
     techStack: Array.isArray(project.techStack) ? project.techStack.join(', ') : '',
-    imageUrl: project.imageUrl || '',
+    // Don't display "public/projects/" URLs as they're server-generated
+    imageUrl: (project.imageUrl && !project.imageUrl.startsWith('public/projects/')) ? project.imageUrl : '',
+    imageFile: null,
+    imagePreview: null,
     githubUrl: project.githubUrl || '',
     demoUrl: project.demoUrl || '',
     status: project.status || 'In Progress',
@@ -433,12 +493,15 @@ const projectToFormData = (project) => ({
 });
 
 // --- Helper to convert form data to project ---
-const formDataToProject = (formData) => ({
-    ...formData,
-    techStack: formData.techStack.split(',').map(t => t.trim()).filter(Boolean),
-    features: formData.features.split('\n').map(f => f.trim()).filter(Boolean),
-    screenshots: []
-});
+const formDataToProject = (formData) => {
+    const { imageFile, imagePreview, ...projectData } = formData;
+    return {
+        ...projectData,
+        techStack: projectData.techStack.split(',').map(t => t.trim()).filter(Boolean),
+        features: projectData.features.split('\n').map(f => f.trim()).filter(Boolean),
+        screenshots: []
+    };
+};
 
 // --- Initial empty form state ---
 const EMPTY_FORM = {
@@ -447,6 +510,8 @@ const EMPTY_FORM = {
     longDescription: '',
     techStack: '',
     imageUrl: '',
+    imageFile: null,
+    imagePreview: null,
     githubUrl: '',
     demoUrl: '',
     status: 'In Progress',
@@ -511,13 +576,38 @@ export default function ProjectsPage() {
         }
     };
 
+    const uploadProjectImage = async (formData, projectName) => {
+        if (!formData.imageFile) {
+            return formData.imageUrl; // Return existing URL if no new file
+        }
+
+        try {
+            const response = await api.projects.uploadImage(formData.imageFile, projectName);
+            return response.imageUrl; // Return auto-generated URL from backend
+        } catch (error) {
+            addToast({
+                action: "Error",
+                fileName: "Image Upload",
+                status: 'error',
+                message: error.message || "Failed to upload project image",
+            });
+            throw error;
+        }
+    };
+
     const handleAddProject = async () => {
         if (!addFormData.name.trim()) return;
 
-        const newProject = formDataToProject(addFormData);
-        const updatedProjects = [newProject, ...projects];
-        
         try {
+            setSaving(true);
+            // Upload image if file is selected
+            const imageUrl = await uploadProjectImage(addFormData, addFormData.name);
+
+            // Create project with uploaded image URL
+            const projectFormData = { ...addFormData, imageUrl };
+            const newProject = formDataToProject(projectFormData);
+            const updatedProjects = [newProject, ...projects];
+
             await saveProjectsToBackend(updatedProjects);
             setProjects(updatedProjects);
             setIsAddModalOpen(false);
@@ -530,7 +620,9 @@ export default function ProjectsPage() {
                 message: "Project added successfully",
             });
         } catch (error) {
-            // Error toast already shown in saveProjectsToBackend
+            // Error toast already shown in uploadProjectImage or saveProjectsToBackend
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -542,12 +634,18 @@ export default function ProjectsPage() {
     const handleSaveEdit = async () => {
         if (!editFormData.name.trim()) return;
 
-        const updatedProject = formDataToProject(editFormData);
-        const updatedProjects = projects.map(p =>
-            p.name === editingProject.name ? updatedProject : p
-        );
-        
         try {
+            setSaving(true);
+            // Upload image if file is selected
+            const imageUrl = await uploadProjectImage(editFormData, editFormData.name);
+
+            // Create project with uploaded image URL
+            const projectFormData = { ...editFormData, imageUrl };
+            const updatedProject = formDataToProject(projectFormData);
+            const updatedProjects = projects.map(p =>
+                p.name === editingProject.name ? updatedProject : p
+            );
+
             await saveProjectsToBackend(updatedProjects);
             setProjects(updatedProjects);
             setEditingProject(null);
@@ -560,7 +658,9 @@ export default function ProjectsPage() {
                 message: "Project updated successfully",
             });
         } catch (error) {
-            // Error toast already shown in saveProjectsToBackend
+            // Error toast already shown in uploadProjectImage or saveProjectsToBackend
+        } finally {
+            setSaving(false);
         }
     };
 

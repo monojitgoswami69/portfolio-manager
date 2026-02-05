@@ -1105,6 +1105,23 @@ export const api = {
         body: JSON.stringify({ projects, message }),
       });
     },
+
+    /**
+     * Upload and process a project image
+     * @param {File} file - Image file to upload
+     * @param {string} projectName - Project name for filename generation
+     * @returns {Promise<{status: string, imageUrl: string, filename: string}>}
+     */
+    uploadImage: async (file, projectName) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('projectName', projectName);
+
+      return apiRequest('/api/v1/projects/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+    },
   },
   /**
    * Handoff Management API

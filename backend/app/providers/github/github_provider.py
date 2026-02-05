@@ -123,5 +123,131 @@ class GitHubProvider:
         result = await self._save_file(settings.GITHUB_CONTACTS_PATH, content, message)
         return {"commit": result["sha"], "success": True}
 
+    # --- Project Images ---
+    async def upload_image(self, filename: str, image_bytes: bytes) -> dict:
+        """
+        Upload a project image to GitHub.
+
+        Args:
+            filename: Image filename (e.g., 'project_abc123.webp')
+            image_bytes: Binary image content
+
+        Returns:
+            dict: {"sha": commit_sha, "success": True}
+
+        Raises:
+            GitHubError: If upload fails
+        """
+        if not settings.GITHUB_PROJECT_IMAGES_PATH:
+            raise GitHubError("GITHUB_PROJECT_IMAGES_DIRECTORY not configured")
+
+        path = f"{settings.GITHUB_PROJECT_IMAGES_PATH}/{filename}"
+        sha = await self._get_sha(path)
+        url = f"https://api.github.com/repos/{self.repo}/contents/{path}"
+
+        data = {
+            "message": f"Upload project image: {filename}",
+            "content": base64.b64encode(image_bytes).decode('utf-8'),
+            "branch": self.branch
+        }
+        if sha:
+            data["sha"] = sha
+
+        try:
+            async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
+                r = await client.put(url, headers=self._headers(), json=data)
+                if r.status_code not in [200, 201]:
+                    error_msg = r.json().get("message", "Unknown error")
+                    raise GitHubError(f"Failed to upload image {filename}: {error_msg}")
+                res = r.json().get("commit", {})
+                return {"sha": res.get("sha"), "success": True}
+        except Exception as e:
+            logger.error(f"Failed to upload image {filename}: {e}")
+            raise
+
+    async def delete_image(self, filename: str) -> dict:
+        """
+        Delete a project image from GitHub.
+
+        Args:
+            filename: Image filename (e.g., 'project_abc123.webp')
+
+        Returns:
+            dict: {"sha": commit_sha, "success": True}
+
+        Raises:
+            GitHubError: If deletion fails or file not found
+        """
+        if not settings.GITHUB_PROJECT_IMAGES_PATH:
+            raise GitHubError("GITHUB_PROJECT_IMAGES_DIRECTORY not configured")
+
+        path = f"{settings.GITHUB_PROJECT_IMAGES_PATH}/{filename}"
+        sha = await self._get_sha(path)
+
+        if not sha:
+            logger.warning(f"Image {filename} not found in GitHub, skipping deletion")
+            return {"sha": None, "success": True}
+
+        url = f"https://api.github.com/repos/{self.repo}/contents/{path}"
+        data = {
+            "message": f"Delete project image: {filename}",
+            "sha": sha,
+            "branch": self.branch
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
+                r = await client.delete(url, headers=self._headers(), json=data)
+                if r.status_code not in [200, 204]:
+                    error_msg = r.json().get("message", "Unknown error")
+                    raise GitHubError(f"Failed to delete image {filename}: {error_msg}")
+                if r.status_code == 200:
+                    res = r.json().get("commit", {})
+                    return {"sha": res.get("sha"), "success": True}
+                return {"sha": None, "success": True}
+        except Exception as e:
+            logger.error(f"Failed to delete image {filename}: {e}")
+            raise
+
+    async def list_images(self) -> list[str]:
+        """
+        List all project images in GitHub directory.
+
+        Returns:
+            list[str]: List of image filenames
+
+        Raises:
+            GitHubError: If listing fails
+        """
+        if not settings.GITHUB_PROJECT_IMAGES_PATH:
+            logger.warning("GITHUB_PROJECT_IMAGES_DIRECTORY not configured")
+            return []
+
+        url = f"https://api.github.com/repos/{self.repo}/contents/{settings.GITHUB_PROJECT_IMAGES_PATH}?ref={self.branch}"
+
+        try:
+            async with httpx.AsyncClient(timeout=settings.HTTP_CLIENT_TIMEOUT) as client:
+                r = await client.get(url, headers=self._headers())
+
+                if r.status_code == 404:
+                    logger.info("Project images directory not found, returning empty list")
+                    return []
+
+                if r.status_code != 200:
+                    logger.error(f"Failed to list images: status {r.status_code}")
+                    return []
+
+                items = r.json()
+                if not isinstance(items, list):
+                    return []
+
+                # Filter only files (not directories)
+                filenames = [item["name"] for item in items if item["type"] == "file"]
+                return filenames
+
+        except Exception as e:
+            logger.error(f"Failed to list images from GitHub: {e}")
+            return []
+
 
 github_provider = GitHubProvider()

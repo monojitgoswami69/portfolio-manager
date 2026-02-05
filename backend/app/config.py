@@ -47,15 +47,22 @@ class Settings:
 
         # --- GitHub Integration ---
         self.GITHUB_TOKEN = get_req("GITHUB_TOKEN")
-        
+
         # Parse projects directory (format: owner/repo/path/to/projects.json)
         projects_dir = get_req("GITHUB_PROJECTS_DIRECTORY")
         self.GITHUB_REPO, self.GITHUB_PROJECTS_PATH = self._parse_github_path(projects_dir)
-        
+
         # Parse contacts directory (format: owner/repo/path/to/contact.json)
         contacts_dir = get_req("GITHUB_CONTACTS_DIRECTORY")
         _, self.GITHUB_CONTACTS_PATH = self._parse_github_path(contacts_dir)
-        
+
+        # Parse project images directory (format: owner/repo/path/to/images)
+        images_dir = get_opt("GITHUB_PROJECT_IMAGES_DIRECTORY")
+        if images_dir:
+            _, self.GITHUB_PROJECT_IMAGES_PATH = self._parse_github_path(images_dir)
+        else:
+            self.GITHUB_PROJECT_IMAGES_PATH = None
+
         self.GITHUB_BRANCH = get_opt("GITHUB_BRANCH", "main")
         self.HTTP_CLIENT_TIMEOUT = float(get_opt("HTTP_CLIENT_TIMEOUT", 60.0))
 

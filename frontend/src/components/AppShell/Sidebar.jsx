@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/helpers';
-const logoImg = '/assets/logo.png';
+const logoImg = '/logo.png';
 import {
   LayoutDashboard,
   BookOpen,

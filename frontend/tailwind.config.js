@@ -28,6 +28,7 @@ export default {
           800: '#3730A3',
           900: '#312E81',
         },
+        'primary-dark': '#4338CA',
         accent: {
           DEFAULT: '#7C3AED',
           50: '#F5F3FF',
@@ -91,6 +92,7 @@ export default {
         'DEFAULT': '8px',
         'md': '8px',
         'lg': '12px',
+        'card': '32px',
       },
       boxShadow: {
         'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
