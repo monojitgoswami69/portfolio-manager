@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from PIL import Image
 from fastapi import UploadFile, HTTPException
-from ...config import logger
+from ..config import logger
 
 # Constants
 MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2 MB
